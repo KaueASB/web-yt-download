@@ -13,9 +13,17 @@ export async function GET(request: NextRequest) {
 	}
 
 	try {
-		// In a real implementation, you would:
-		// 1. Download the video in the requested format
-		// 2. Stream it to the client or redirect to a download URL
+		// 1. get formats
+		// const formats = await fetch(`${process.env.NEXT_PUBLIC_API_URL_DEV}/formats?url=${url}`)
+		// const formatsData = await formats.json()
+
+		// 2. Download the video in the requested format
+		// const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL_DEV}/download`, {
+		// 	method: 'POST',
+		// 	body: JSON.stringify({ url, format }),
+		// })
+
+		// 3. Stream it to the client or redirect to a download URL
 
 		// For this example, we'll just return a success message
 		return NextResponse.json({

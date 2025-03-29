@@ -1,10 +1,16 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
-// This is a mock API endpoint - replace with your actual implementation
+type Format = {
+	code: string
+	extension: string
+	resolution: number
+	filesize: string
+}
+
 export async function GET(request: NextRequest) {
 	const url = request.nextUrl.searchParams.get('url')
 
-	if (!url) {
+	if (!url || !url.startsWith('http')) {
 		return NextResponse.json(
 			{ error: 'URL parameter is required' },
 			{ status: 400 }
@@ -12,16 +18,16 @@ export async function GET(request: NextRequest) {
 	}
 
 	try {
-		// Simulate API delay
-		await new Promise(resolve => setTimeout(resolve, 1000))
+		const apiUrl = process.env.NEXT_PUBLIC_API_URL
+		const response = await fetch(`${apiUrl}/formats?url=${url}`)
+		const data = await response.json()
 
-		// Mock response - replace with your actual API call
-		const formats = [
-			{ id: '1', label: '720p', quality: 'HD', extension: 'mp4' },
-			{ id: '2', label: '480p', quality: 'SD', extension: 'mp4' },
-			{ id: '3', label: '360p', quality: 'Low', extension: 'mp4' },
-			{ id: '4', label: 'Audio', quality: '128kbps', extension: 'mp3' },
-		]
+		const formats = data.formats.map((format: Format) => ({
+			id: format.code,
+			label: format.extension,
+			quality: format.resolution,
+			filesize: format.filesize,
+		}))
 
 		return NextResponse.json({ formats })
 	} catch (error) {

@@ -23,10 +23,10 @@ import {
 import { useEffect, useRef, useState } from 'react'
 
 interface Format {
-	id: string
-	label: string
-	quality: string
+	code: string
+	filesize: string
 	extension: string
+	resolution: string
 }
 
 export default function VideoDownloader() {
@@ -34,7 +34,13 @@ export default function VideoDownloader() {
 	const [formats, setFormats] = useState<Format[]>([])
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState('')
-	const [copied, setCopied] = useState(false)
+	const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>(
+		{}
+	)
+	const [downloadProgress, setDownloadProgress] = useState<{
+		[key: string]: number
+	}>({})
+	const [downloading, setDownloading] = useState<{ [key: string]: boolean }>({})
 	const inputRef = useRef<HTMLInputElement>(null)
 
 	// Mouse follower effect
@@ -64,9 +70,10 @@ export default function VideoDownloader() {
 		setError('')
 
 		try {
-			// Replace with your actual API endpoint
+			const trimmedUrl = url.trim()
+
 			const response = await fetch(
-				`/api/formats?url=${encodeURIComponent(url)}`
+				`${process.env.NEXT_PUBLIC_API_URL}/formats?url=${encodeURIComponent(trimmedUrl)}`
 			)
 
 			if (!response.ok) {
@@ -74,20 +81,60 @@ export default function VideoDownloader() {
 			}
 
 			const data = await response.json()
-			setFormats(data.formats || [])
+			setFormats(data.formats)
 		} catch (err) {
 			setError(
 				'Failed to get video formats. Please check the URL and try again.'
 			)
+
 			console.error(err)
 		} finally {
 			setLoading(false)
 		}
 	}
 
-	const handleDownload = (formatId: string) => {
-		// Replace with your actual download endpoint
-		window.location.href = `/api/download?url=${encodeURIComponent(url)}&format=${formatId}`
+	const handleDownload = async (formatId: string) => {
+		if (downloading[formatId]) return
+
+		try {
+			setDownloading(prev => ({ ...prev, [formatId]: true }))
+			setDownloadProgress(prev => ({ ...prev, [formatId]: 0 }))
+
+			const trimmedUrl = url.trim()
+
+			await fetch(
+				`${process.env.NEXT_PUBLIC_API_URL}/download-with-code?url=${encodeURIComponent(trimmedUrl)}&code=${formatId}`
+			)
+
+			const progressUrl = `${process.env.NEXT_PUBLIC_API_URL}/progress?url=${encodeURIComponent(trimmedUrl)}`
+
+			const eventSource = new EventSource(progressUrl)
+
+			eventSource.onmessage = event => {
+				const data = JSON.parse(event.data)
+				setDownloadProgress(prev => ({ ...prev, [formatId]: data.progress }))
+
+				if (data.progress === 100) {
+					eventSource.close()
+					window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/file?url=${encodeURIComponent(trimmedUrl)}`
+
+					setTimeout(() => {
+						setDownloading(prev => ({ ...prev, [formatId]: false }))
+					}, 2000)
+				}
+			}
+
+			eventSource.onerror = error => {
+				console.error('EventSource failed:', error)
+				eventSource.close()
+				setDownloading(prev => ({ ...prev, [formatId]: false }))
+				setDownloadProgress(prev => ({ ...prev, [formatId]: 0 }))
+			}
+		} catch (err) {
+			console.error('Download error:', err)
+			setDownloading(prev => ({ ...prev, [formatId]: false }))
+			setDownloadProgress(prev => ({ ...prev, [formatId]: 0 }))
+		}
 	}
 
 	const clearInput = () => {
@@ -99,12 +146,15 @@ export default function VideoDownloader() {
 		}
 	}
 
-	const handleCopyUrl = (formatId: string) => {
-		const downloadUrl = `/api/download?url=${encodeURIComponent(url)}&format=${formatId}`
-		navigator.clipboard.writeText(downloadUrl)
-		setCopied(true)
-		setTimeout(() => setCopied(false), 2000)
-	}
+	// const handleCopyUrl = (formatId: string) => {
+	// 	const trimmedUrl = url.trim()
+	// 	const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL}/download?url=${encodeURIComponent(trimmedUrl)}&format=${formatId}`
+	// 	navigator.clipboard.writeText(downloadUrl)
+	// 	setCopiedStates(prev => ({ ...prev, [formatId]: true }))
+	// 	setTimeout(() => {
+	// 		setCopiedStates(prev => ({ ...prev, [formatId]: false }))
+	// 	}, 2000)
+	// }
 
 	return (
 		<div className="relative flex min-h-screen flex-col items-center justify-center bg-black text-white overflow-hidden">
@@ -238,7 +288,7 @@ export default function VideoDownloader() {
 									<div className="grid gap-3">
 										{formats.map((format, index) => (
 											<motion.div
-												key={format.id}
+												key={format.code}
 												initial={{ opacity: 0, y: 10 }}
 												animate={{ opacity: 1, y: 0 }}
 												transition={{ delay: 0.1 + index * 0.05 }}
@@ -253,40 +303,73 @@ export default function VideoDownloader() {
 															</div>
 															<div>
 																<p className="font-medium text-zinc-200 group-hover:text-white transition-colors duration-200">
-																	{format.label}
+																	{format.extension}
 																</p>
 																<p className="text-xs text-zinc-500">
-																	{format.quality}
+																	{format.resolution}
 																</p>
 															</div>
 														</div>
 
 														<div className="flex items-center gap-2">
 															<span className="rounded-full bg-zinc-800 px-2.5 py-0.5 text-xs text-zinc-400">
-																{format.extension}
+																{format.filesize}
 															</span>
 
 															<div className="flex items-center gap-1">
-																<Button
+																{/* <Button
 																	size="sm"
 																	variant="ghost"
 																	className="h-8 rounded-lg border border-zinc-800 bg-zinc-800/50 px-2 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-																	onClick={() => handleCopyUrl(format.id)}
+																	onClick={() => handleCopyUrl(format.code)}
 																>
-																	{copied ? (
+																	{copiedStates[format.code] ? (
 																		<Check className="h-3 w-3" />
 																	) : (
 																		'Copy'
 																	)}
-																</Button>
+																</Button> */}
 
 																<Button
 																	size="sm"
-																	className="h-8 rounded-lg bg-zinc-100 px-3 text-xs text-zinc-900 hover:bg-zinc-200"
-																	onClick={() => handleDownload(format.id)}
+																	className="h-8 rounded-lg bg-zinc-100 px-3 text-xs text-zinc-900 hover:bg-zinc-200 cursor-pointer relative overflow-hidden"
+																	onClick={() => handleDownload(format.code)}
+																	disabled={downloading[format.code]}
 																>
-																	<Download className="mr-1 h-3 w-3" />
-																	Download
+																	{/* Barra de progresso */}
+																	{downloading[format.code] && (
+																		<div
+																			className="absolute left-0 top-0 bottom-0 bg-green-400/70 transition-all duration-300 ease-out"
+																			style={{
+																				width: `${downloadProgress[format.code] || 0}%`,
+																				zIndex: 0,
+																			}}
+																		/>
+																	)}
+
+																	{/* Conteúdo do botão */}
+																	<span className="relative z-10 flex items-center justify-center">
+																		{downloading[format.code] ? (
+																			<>
+																				{downloadProgress[format.code] < 100 ? (
+																					<>
+																						<Loader2 className="mr-1 h-3 w-3 animate-spin" />
+																						{downloadProgress[format.code]}%
+																					</>
+																				) : (
+																					<>
+																						<Check className="mr-1 h-3 w-3" />
+																						Done
+																					</>
+																				)}
+																			</>
+																		) : (
+																			<>
+																				<Download className="mr-1 h-3 w-3" />
+																				Download
+																			</>
+																		)}
+																	</span>
 																</Button>
 															</div>
 														</div>
