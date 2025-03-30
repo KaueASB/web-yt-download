@@ -40,16 +40,12 @@ export default function VideoDownloader() {
 	const [formats, setFormats] = useState<Format[]>([])
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState('')
-	const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>(
-		{}
-	)
 	const [downloadProgress, setDownloadProgress] = useState<{
 		[key: string]: number
 	}>({})
 	const [downloading, setDownloading] = useState<{ [key: string]: boolean }>({})
 	const inputRef = useRef<HTMLInputElement>(null)
 
-	// Mouse follower effect
 	const mouseX = useMotionValue(0)
 	const mouseY = useMotionValue(0)
 	const springConfig = { damping: 50, stiffness: 500 }

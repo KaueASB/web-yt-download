@@ -1,7 +1,3 @@
-/**
- * Serviço para gerenciar operações relacionadas a vídeos
- */
-
 interface Format {
 	code: string
 	extension: string
@@ -29,7 +25,7 @@ export async function getVideoFormats(url: string): Promise<Format[]> {
 	}
 
 	const data = await response.json()
-	return data.formats
+	return data.formats satisfies VideoFormatsResponse
 }
 
 /**
