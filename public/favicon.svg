@@ -1,67 +1,89 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <!-- Definições de gradientes e filtros -->
   <defs>
-    <!-- Gradiente principal de fundo -->
+    <!-- Gradientes de fundo com maior complexidade -->
     <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#0f172a" />
-      <stop offset="100%" stop-color="#1e293b" />
+      <stop offset="50%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
     </linearGradient>
     
-    <!-- Gradiente melhorado para a seta de download -->
+    <!-- Gradiente para círculo interno -->
+    <radialGradient id="innerCircleGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="80%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </radialGradient>
+    
+    <!-- Gradiente verde para os elementos de ação -->
     <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#22c55e" />
-      <stop offset="60%" stop-color="#10b981" />
+      <stop offset="0%" stop-color="#4ade80" />
       <stop offset="100%" stop-color="#059669" />
     </linearGradient>
     
-    <!-- Suave sombra interna para profundidade -->
-    <filter id="innerShadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur" />
-      <feOffset dy="2" dx="2" />
-      <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="shadowDiff" />
-      <feFlood flood-color="#000" flood-opacity="0.15" />
-      <feComposite in2="shadowDiff" operator="in" />
-      <feComposite in2="SourceGraphic" operator="over" />
+    <!-- Gradiente mais claro para detalhes -->
+    <linearGradient id="lightAccentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#86efac" />
+      <stop offset="100%" stop-color="#22c55e" />
+    </linearGradient>
+    
+    <!-- Efeito de brilho para elementos principais -->
+    <filter id="mainGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1" result="blur"/>
+      <feFlood flood-color="#22c55e" flood-opacity="0.5"/>
+      <feComposite in2="blur" operator="in"/>
+      <feComposite in="SourceGraphic" operator="over"/>
     </filter>
     
-    <!-- Brilho aprimorado para a seta -->
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="1.5" result="blur" />
-      <feFlood flood-color="#10b981" flood-opacity="0.4" />
-      <feComposite in2="blur" operator="in" />
-      <feComposite in="SourceGraphic" />
+    <!-- Efeito de brilho sutil para elementos secundários -->
+    <filter id="subtleGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="0.5" result="blur"/>
+      <feFlood flood-color="#4ade80" flood-opacity="0.3"/>
+      <feComposite in2="blur" operator="in"/>
+      <feComposite in="SourceGraphic" operator="over"/>
     </filter>
+    
+    <!-- Padrão de linhas para textura -->
+    <pattern id="linesPattern" width="4" height="4" patternUnits="userSpaceOnUse">
+      <path d="M0,0 L4,4" stroke="#334155" stroke-width="0.5" opacity="0.2"/>
+    </pattern>
   </defs>
   
-  <!-- Base circular com sombra interna sutil -->
-  <circle cx="32" cy="32" r="30" fill="url(#bgGradient)" filter="url(#innerShadow)" />
-  <circle cx="32" cy="32" r="30" fill="none" stroke="#334155" stroke-width="0.8" />
+  <!-- Base circular com detalhes -->
+  <circle cx="32" cy="32" r="30" fill="url(#bgGradient)" />
+  <circle cx="32" cy="32" r="27" fill="url(#innerCircleGradient)" filter="url(#subtleGlow)" />
+  <circle cx="32" cy="32" r="30" fill="none" stroke="#475569" stroke-width="0.8" opacity="0.6" />
+  <circle cx="32" cy="32" r="25" fill="none" stroke="#475569" stroke-width="0.4" opacity="0.3" />
   
-  <!-- Forma de vídeo mais moderna com cantos mais arredondados -->
-  <rect x="15" y="16" width="34" height="19" rx="4" fill="#e2e8f0" opacity="0.95" />
+  <!-- Círculo de textura -->
+  <circle cx="32" cy="32" r="23" fill="url(#linesPattern)" opacity="0.15" />
   
-  <!-- Linhas estilizadas no vídeo para dar textura -->
-  <line x1="22" y1="20" x2="42" y2="20" stroke="#94a3b8" stroke-width="1" opacity="0.7" />
-  <line x1="22" y1="24" x2="38" y2="24" stroke="#94a3b8" stroke-width="1" opacity="0.7" />
-  <line x1="22" y1="28" x2="35" y2="28" stroke="#94a3b8" stroke-width="1" opacity="0.7" />
-  
-  <!-- Novo ícone de download com design mais definido -->
-  <g filter="url(#glow)">
-    <!-- Círculo de fundo para a seta -->
-    <circle cx="32" cy="38" r="10" fill="none" stroke="url(#accentGradient)" stroke-width="1.5" opacity="0.2" />
+  <!-- Design principal - Moldura de vídeo centralizada com seta de download -->
+  <g>
+    <!-- Moldura estilizada perfeitamente centralizada -->
+    <rect x="17" y="22" width="30" height="20" rx="3" fill="#1e293b" stroke="#e2e8f0" stroke-width="0.8" opacity="0.95" />
+    <rect x="18" y="23" width="28" height="18" rx="2" fill="none" stroke="#94a3b8" stroke-width="0.4" opacity="0.6" />
     
-    <!-- Seta de download redesenhada -->
-    <path d="M32 30 L32 46" stroke="url(#accentGradient)" stroke-width="3.2" stroke-linecap="round" />
-    <path d="M25 39 L32 46 L39 39" stroke="url(#accentGradient)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Elementos de controle de vídeo -->
+    <rect x="18" y="39" width="28" height="3" rx="1" fill="#334155" />
+    <circle cx="22" cy="40.5" r="1" fill="#64748b" />
+    <rect x="25" y="40" width="10" height="1" rx="0.5" fill="#64748b" />
     
-    <!-- Ponta da seta preenchida para mais visibilidade -->
-    <path d="M32,46 l-7,-7 h14 z" fill="url(#accentGradient)" opacity="0.8" />
+    <!-- Seta de download no centro da moldura com círculo verde -->
+    <g filter="url(#subtleGlow)">
+      <!-- Círculo verde ao redor da seta -->
+      <circle cx="32" cy="31" r="6" fill="none" stroke="url(#accentGradient)" stroke-width="1.2" opacity="0.9" />
+      
+      <!-- Seta de download estilizada -->
+      <path d="M32,28 v6 m-3,-3 l3,3 l3,-3" stroke="url(#accentGradient)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
   </g>
   
-  <!-- Brilhos sutis para dar profundidade -->
-  <circle cx="19" cy="19" r="1.5" fill="#f8fafc" opacity="0.7" />
-  <circle cx="46" cy="19" r="0.8" fill="#f8fafc" opacity="0.5" />
+  <!-- Detalhes decorativos -->
+  <circle cx="19" cy="22" r="0.7" fill="#f8fafc" opacity="0.9" />
+  <circle cx="45" cy="22" r="0.4" fill="#f8fafc" opacity="0.6" />
+  <path d="M16,44 A 28,28 0 0,0 48,44" fill="none" stroke="#334155" stroke-width="0.6" opacity="0.3" />
   
-  <!-- Reflexo na borda superior -->
-  <path d="M17 41 A 24 24 0 0 1 47 41" fill="none" stroke="#f1f5f9" stroke-width="0.5" opacity="0.1" />
+  <!-- Reflexos e brilhos -->
+  <path d="M22,21 L24,19" stroke="url(#lightAccentGradient)" stroke-width="0.5" opacity="0.7" />
+  <path d="M42,21 L44,19" stroke="url(#lightAccentGradient)" stroke-width="0.5" opacity="0.7" />
 </svg>
