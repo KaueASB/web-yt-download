@@ -71,8 +71,7 @@ export function downloadFile(url: string): void {
 
 	const iframe = document.createElement('iframe')
 	iframe.style.display = 'none'
-	iframe.src = `/api/file?url=${encodeURIComponent(trimmedUrl)}`
-	// iframe.src = `${apiUrl}/file?url=${encodeURIComponent(trimmedUrl)}`
+	iframe.src = `${apiUrl}/file?url=${encodeURIComponent(trimmedUrl)}`
 	document.body.appendChild(iframe)
 
 	setTimeout(() => {
