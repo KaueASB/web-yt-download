@@ -68,7 +68,6 @@ export default function VideoDownloader() {
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
-
 		if (!url) return
 
 		setLoading(true)
@@ -76,22 +75,8 @@ export default function VideoDownloader() {
 		setError('')
 
 		try {
-			const trimmedUrl = url.trim()
-			const apiUrl = process.env.NEXT_PUBLIC_API_URL
-
-			const response = await fetch(
-				`${apiUrl}/formats?url=${encodeURIComponent(trimmedUrl)}`
-			)
-
-			if (!response.ok) {
-				throw new Error('Failed to fetch video formats')
-			}
-
-			// const formats = await getVideoFormats(url)
-			// setFormats(formats)
-
-			const data = await response.json()
-			setFormats(data.formats)
+			const formats = await getVideoFormats(url)
+			setFormats(formats)
 		} catch (err) {
 			setError(
 				'Failed to get video formats. Please check the URL and try again.'
@@ -122,7 +107,7 @@ export default function VideoDownloader() {
 				// Quando o progresso chegar a 100%, inicia o download real
 				if (data.progress === 100) {
 					eventSource.close()
-					downloadFile(url, formatId)
+					downloadFile(url)
 
 					setTimeout(() => {
 						setDownloading(prev => ({ ...prev, [formatId]: false }))

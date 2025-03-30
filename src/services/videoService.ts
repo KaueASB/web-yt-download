@@ -18,15 +18,17 @@ interface VideoFormatsResponse {
  */
 export async function getVideoFormats(url: string): Promise<Format[]> {
 	const trimmedUrl = url.trim()
+	const apiUrl = process.env.NEXT_PUBLIC_API_URL
+
 	const response = await fetch(
-		`/api/formats?url=${encodeURIComponent(trimmedUrl)}`
+		`${apiUrl}/formats?url=${encodeURIComponent(trimmedUrl)}`
 	)
 
 	if (!response.ok) {
 		throw new Error('Failed to fetch video formats')
 	}
 
-	const data = (await response.json()) as VideoFormatsResponse
+	const data = await response.json()
 	return data.formats
 }
 
@@ -38,8 +40,10 @@ export async function startVideoDownload(
 	formatCode: string
 ): Promise<void> {
 	const trimmedUrl = url.trim()
+	const apiUrl = process.env.NEXT_PUBLIC_API_URL
+
 	const response = await fetch(
-		`/api/download?url=${encodeURIComponent(trimmedUrl)}&code=${formatCode}`
+		`${apiUrl}/download-with-code?url=${encodeURIComponent(trimmedUrl)}&code=${formatCode}`
 	)
 
 	if (!response.ok) {
@@ -52,18 +56,23 @@ export async function startVideoDownload(
  */
 export function createProgressMonitor(url: string): EventSource {
 	const trimmedUrl = url.trim()
-	return new EventSource(`/api/progress?url=${encodeURIComponent(trimmedUrl)}`)
+	const apiUrl = process.env.NEXT_PUBLIC_API_URL
+	return new EventSource(
+		`${apiUrl}/progress?url=${encodeURIComponent(trimmedUrl)}`
+	)
 }
 
 /**
  * Inicia o download do arquivo final
  */
-export function downloadFile(url: string, formatCode: string): void {
+export function downloadFile(url: string): void {
 	const trimmedUrl = url.trim()
+	const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
 	const iframe = document.createElement('iframe')
 	iframe.style.display = 'none'
 	iframe.src = `/api/file?url=${encodeURIComponent(trimmedUrl)}`
+	// iframe.src = `${apiUrl}/file?url=${encodeURIComponent(trimmedUrl)}`
 	document.body.appendChild(iframe)
 
 	setTimeout(() => {
