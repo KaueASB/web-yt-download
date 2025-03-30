@@ -37,7 +37,12 @@ Uma aplicação web moderna para download de vídeos da internet, com interface 
 1. Clone o repositório:
 
    ```bash
-   git clone https://github.com/seu-usuario/web-video-download.git
+   via http
+   git clone https://github.com/KaueASB/web-yt-download.git
+
+   via ssh
+   git clone git@github.com:KaueASB/web-yt-download.git
+
    cd web-video-download
    ```
 
