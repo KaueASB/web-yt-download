@@ -76,8 +76,22 @@ export default function VideoDownloader() {
 		setError('')
 
 		try {
-			const formats = await getVideoFormats(url)
-			setFormats(formats)
+			const trimmedUrl = url.trim()
+			const apiUrl = process.env.NEXT_PUBLIC_API_URL
+
+			const response = await fetch(
+				`${apiUrl}/formats?url=${encodeURIComponent(trimmedUrl)}`
+			)
+
+			if (!response.ok) {
+				throw new Error('Failed to fetch video formats')
+			}
+
+			// const formats = await getVideoFormats(url)
+			// setFormats(formats)
+
+			const data = await response.json()
+			setFormats(data.formats)
 		} catch (err) {
 			setError(
 				'Failed to get video formats. Please check the URL and try again.'
