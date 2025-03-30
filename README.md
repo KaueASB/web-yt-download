@@ -1,34 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Web Video Downloader
 
-## Getting Started
+![Next.js](https://img.shields.io/badge/Next.js-15.2.3-black)
+![React](https://img.shields.io/badge/React-19.0.0-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.0-cyan)
 
-First, run the development server:
+Uma aplicação web moderna para download de vídeos da internet, com interface de usuário elegante e feedback visual em tempo real. O projeto permite aos usuários baixar vídeos em diferentes formatos a partir de URLs, com progresso de download, sem redirecionar o usuário ou abrir novas janelas.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+![Preview da aplicação](./preview.png)
+
+## 🚀 Funcionalidades
+
+- ✅ Interface de usuário moderna e responsiva
+- ✅ Detecção automática de formatos de vídeo disponíveis
+- ✅ Exibição de metadados (tamanho, formato, resolução)
+- ✅ Barra de progresso de download em tempo real
+- ✅ Download direto sem redirecionamento
+- ✅ Design minimalista com animações sutis
+- ✅ Suporta múltiplos sites de vídeo
+
+## 🛠️ Tecnologias
+
+- **Frontend**: Next.js, React, TypeScript, TailwindCSS
+- **UI Components**: Shadcn UI
+- **Animações**: Framer Motion
+- **Ícones**: Lucide React
+- **Build Tools**: Turbopack
+
+## 📋 Pré-requisitos
+
+- Node.js 18+ (recomendado 20+)
+- pnpm (recomendado) ou npm
+
+## 🔧 Instalação
+
+1. Clone o repositório:
+
+   ```bash
+   git clone https://github.com/seu-usuario/web-video-download.git
+   cd web-video-download
+   ```
+
+2. Instale as dependências:
+
+   ```bash
+   pnpm install
+   ```
+
+3. Configure as variáveis de ambiente:
+
+   ```bash
+   cp env-example .env.local
+   ```
+
+   Edite o arquivo `.env.local` e defina:
+
+   ```env
+   NEXT_PUBLIC_API_URL="http://sua-api-url.com"
+   ```
+
+4. Inicie o servidor de desenvolvimento:
+
+   ```bash
+   pnpm dev
+   ```
+
+5. Acesse `http://localhost:3000` no seu navegador
+
+## 🏗️ Estrutura do Projeto
+
+Organização de arquivos e diretórios:
+
+```plaintext
+web-video-download/
+├── src/
+│   ├── app/              # Next.js App Router
+│   │   ├── api/          # API Routes
+│   │   │   ├── download/ # Iniciar download
+│   │   │   ├── file/     # Servidor de arquivos
+│   │   │   ├── formats/  # Formatos disponíveis
+│   │   │   └── progress/ # Monitoramento de progresso
+│   │   └── page.tsx      # Página principal
+│   ├── components/       # Componentes reutilizáveis
+│   ├── lib/              # Utilitários e configurações
+│   └── services/         # Serviços de comunicação com API
+├── .env.local            # Variáveis de ambiente locais
+├── env-example           # Exemplo de variáveis de ambiente
+└── package.json          # Dependências e scripts
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🔄 Fluxo de Trabalho
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. O usuário insere a URL do vídeo na interface
+2. A aplicação consulta a API para obter formatos disponíveis
+3. O usuário seleciona o formato desejado e clica em "Download"
+4. A aplicação inicia o processamento e exibe o progresso em tempo real
+5. Quando concluído, o download do arquivo começa automaticamente
 
-## Learn More
+## 📝 API Endpoints
 
-To learn more about Next.js, take a look at the following resources:
+- `GET /api/formats?url=...` - Obtém formatos disponíveis para uma URL
+- `GET /api/download?url=...&code=...` - Inicia o processo de download
+- `GET /api/progress?url=...` - Monitora o progresso do download usando SSE
+- `GET /api/file?url=...` - Baixa o arquivo final
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🚀 Produção
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Para construir o projeto para produção:
 
-## Deploy on Vercel
+```bash
+pnpm build
+pnpm start
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🤝 Contribuindo
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Contribuições são bem-vindas! Por favor, sinta-se à vontade para submeter um Pull Request.
+
+## 📄 Licença
+
+Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+## 📧 Contato
+
+Para qualquer dúvida ou sugestão, entre em contato através de [kaue_alves00@outlook.com](mailto:kaue_alves00@outlook.com).
