@@ -1,18 +1,11 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
-type Format = {
-	code: string
-	extension: string
-	resolution: number
-	filesize: string
-}
-
 export async function GET(request: NextRequest) {
 	const url = request.nextUrl.searchParams.get('url')
 
 	if (!url || !url.startsWith('http')) {
 		return NextResponse.json(
-			{ error: 'URL parameter is required' },
+			{ error: 'URL parameter is required and must start with http' },
 			{ status: 400 }
 		)
 	}
@@ -20,16 +13,14 @@ export async function GET(request: NextRequest) {
 	try {
 		const apiUrl = process.env.NEXT_PUBLIC_API_URL
 		const response = await fetch(`${apiUrl}/formats?url=${url}`)
+
+		if (!response.ok) {
+			throw new Error(`API error: ${response.status}`)
+		}
+
 		const data = await response.json()
 
-		const formats = data.formats.map((format: Format) => ({
-			id: format.code,
-			label: format.extension,
-			quality: format.resolution,
-			filesize: format.filesize,
-		}))
-
-		return NextResponse.json({ formats })
+		return NextResponse.json(data)
 	} catch (error) {
 		console.error('Error fetching formats:', error)
 		return NextResponse.json(

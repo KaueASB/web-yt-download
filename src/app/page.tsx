@@ -5,6 +5,12 @@ import type React from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+	createProgressMonitor,
+	downloadFile,
+	getVideoFormats,
+	startVideoDownload,
+} from '@/services/videoService'
+import {
 	AnimatePresence,
 	motion,
 	useMotionValue,
@@ -70,23 +76,12 @@ export default function VideoDownloader() {
 		setError('')
 
 		try {
-			const trimmedUrl = url.trim()
-
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/formats?url=${encodeURIComponent(trimmedUrl)}`
-			)
-
-			if (!response.ok) {
-				throw new Error('Failed to fetch formats')
-			}
-
-			const data = await response.json()
-			setFormats(data.formats)
+			const formats = await getVideoFormats(url)
+			setFormats(formats)
 		} catch (err) {
 			setError(
 				'Failed to get video formats. Please check the URL and try again.'
 			)
-
 			console.error(err)
 		} finally {
 			setLoading(false)
@@ -100,23 +95,20 @@ export default function VideoDownloader() {
 			setDownloading(prev => ({ ...prev, [formatId]: true }))
 			setDownloadProgress(prev => ({ ...prev, [formatId]: 0 }))
 
-			const trimmedUrl = url.trim()
+			// Iniciar o download
+			await startVideoDownload(url, formatId)
 
-			await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/download-with-code?url=${encodeURIComponent(trimmedUrl)}&code=${formatId}`
-			)
-
-			const progressUrl = `${process.env.NEXT_PUBLIC_API_URL}/progress?url=${encodeURIComponent(trimmedUrl)}`
-
-			const eventSource = new EventSource(progressUrl)
+			// Monitorar o progresso
+			const eventSource = createProgressMonitor(url)
 
 			eventSource.onmessage = event => {
 				const data = JSON.parse(event.data)
 				setDownloadProgress(prev => ({ ...prev, [formatId]: data.progress }))
 
+				// Quando o progresso chegar a 100%, inicia o download real
 				if (data.progress === 100) {
 					eventSource.close()
-					window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/file?url=${encodeURIComponent(trimmedUrl)}`
+					downloadFile(url, formatId)
 
 					setTimeout(() => {
 						setDownloading(prev => ({ ...prev, [formatId]: false }))
@@ -332,22 +324,22 @@ export default function VideoDownloader() {
 
 																<Button
 																	size="sm"
-																	className="h-8 rounded-lg bg-zinc-100 px-3 text-xs text-zinc-900 hover:bg-zinc-200 cursor-pointer relative overflow-hidden"
+																	className="h-8 rounded-lg bg-zinc-100 px-3 text-xs text-zinc-900 hover:bg-zinc-200 cursor-pointer relative overflow-hidden disabled:opacity-70"
 																	onClick={() => handleDownload(format.code)}
 																	disabled={downloading[format.code]}
 																>
-																	{/* Barra de progresso */}
+																	{/* Barra de progresso - Usando style inline para sobrescrever a opacidade */}
 																	{downloading[format.code] && (
 																		<div
-																			className="absolute left-0 top-0 bottom-0 bg-green-400/70 transition-all duration-300 ease-out"
+																			className="absolute left-0 top-0 bottom-0 bg-green-400 transition-all duration-300 ease-out"
 																			style={{
 																				width: `${downloadProgress[format.code] || 0}%`,
 																				zIndex: 0,
+																				opacity: 1,
 																			}}
 																		/>
 																	)}
 
-																	{/* Conteúdo do botão */}
 																	<span className="relative z-10 flex items-center justify-center">
 																		{downloading[format.code] ? (
 																			<>
