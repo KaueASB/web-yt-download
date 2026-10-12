@@ -9,6 +9,11 @@ interface VideoFormatsResponse {
 	formats: Format[]
 }
 
+interface DownloadResponse {
+	message: string
+	jobId: string
+}
+
 /**
  * Busca os formatos disponíveis para o vídeo
  */
@@ -24,8 +29,8 @@ export async function getVideoFormats(url: string): Promise<Format[]> {
 		throw new Error('Failed to fetch video formats')
 	}
 
-	const data = await response.json()
-	return data.formats satisfies VideoFormatsResponse
+	const data: VideoFormatsResponse = await response.json()
+	return data.formats
 }
 
 /**
@@ -34,7 +39,7 @@ export async function getVideoFormats(url: string): Promise<Format[]> {
 export async function startVideoDownload(
 	url: string,
 	formatCode: string
-): Promise<void> {
+): Promise<string> {
 	const trimmedUrl = url.trim()
 	const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
@@ -45,29 +50,40 @@ export async function startVideoDownload(
 	if (!response.ok) {
 		throw new Error('Failed to start download')
 	}
+
+	const data: DownloadResponse = await response.json()
+
+	return data.jobId
 }
 
 /**
- * Cria um EventSource para monitorar o progresso do download
+ * Obtém o progresso do download
  */
-export function createProgressMonitor(url: string): EventSource {
-	const trimmedUrl = url.trim()
+export async function getDownloadProgress(jobId: string): Promise<number> {
 	const apiUrl = process.env.NEXT_PUBLIC_API_URL
-	return new EventSource(
-		`${apiUrl}/progress?url=${encodeURIComponent(trimmedUrl)}`
+
+	const response = await fetch(
+		`${apiUrl}/progress?jobId=${encodeURIComponent(jobId)}`
 	)
+
+	if (!response.ok) {
+		throw new Error('Failed to get download progress')
+	}
+
+	const data = await response.json()
+
+	return data.progress
 }
 
 /**
  * Inicia o download do arquivo final
  */
-export function downloadFile(url: string): void {
-	const trimmedUrl = url.trim()
+export function downloadFile(jobId: string): void {
 	const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
 	const iframe = document.createElement('iframe')
 	iframe.style.display = 'none'
-	iframe.src = `${apiUrl}/file?url=${encodeURIComponent(trimmedUrl)}`
+	iframe.src = `${apiUrl}/file?jobId=${encodeURIComponent(jobId)}`
 	document.body.appendChild(iframe)
 
 	setTimeout(() => {

@@ -1,18 +1,18 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
-	const url = request.nextUrl.searchParams.get('url')
+	const jobId = request.nextUrl.searchParams.get('jobId')
 
-	if (!url) {
+	if (!jobId) {
 		return NextResponse.json(
-			{ error: 'URL parameter is required' },
+			{ error: 'Job ID parameter is required' },
 			{ status: 400 }
 		)
 	}
 
 	try {
 		const apiUrl = process.env.NEXT_PUBLIC_API_URL
-		const fileUrl = `${apiUrl}/file?url=${encodeURIComponent(url)}`
+		const fileUrl = `${apiUrl}/file?jobId=${encodeURIComponent(jobId)}`
 
 		const response = await fetch(fileUrl, {
 			headers: {

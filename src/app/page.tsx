@@ -5,8 +5,8 @@ import type React from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-	createProgressMonitor,
 	downloadFile,
+	getDownloadProgress,
 	getVideoFormats,
 	startVideoDownload,
 } from '@/services/videoService'
@@ -90,37 +90,56 @@ export default function VideoDownloader() {
 			setDownloading(prev => ({ ...prev, [formatId]: true }))
 			setDownloadProgress(prev => ({ ...prev, [formatId]: 0 }))
 
-			// Iniciar o download
-			await startVideoDownload(url, formatId)
+			const jobId = await startVideoDownload(url, formatId)
 
-			// Monitorar o progresso
-			const eventSource = createProgressMonitor(url)
+			const interval = setInterval(async () => {
+				try {
+					const progress = await getDownloadProgress(jobId)
 
-			eventSource.onmessage = event => {
-				const data = JSON.parse(event.data)
-				setDownloadProgress(prev => ({ ...prev, [formatId]: data.progress }))
+					setDownloadProgress(prev => ({
+						...prev,
+						[formatId]: progress,
+					}))
 
-				// Quando o progresso chegar a 100%, inicia o download real
-				if (data.progress === 100) {
-					eventSource.close()
-					downloadFile(url)
+					if (progress >= 100) {
+						clearInterval(interval)
 
-					setTimeout(() => {
-						setDownloading(prev => ({ ...prev, [formatId]: false }))
-					}, 2000)
+						downloadFile(jobId)
+
+						setTimeout(() => {
+							setDownloading(prev => ({
+								...prev,
+								[formatId]: false,
+							}))
+						}, 2000)
+					}
+				} catch (error) {
+					console.error('Progress check failed:', error)
+					clearInterval(interval)
+
+					setDownloading(prev => ({
+						...prev,
+						[formatId]: false,
+					}))
+
+					setDownloadProgress(prev => ({
+						...prev,
+						[formatId]: 0,
+					}))
 				}
-			}
-
-			eventSource.onerror = error => {
-				console.error('EventSource failed:', error)
-				eventSource.close()
-				setDownloading(prev => ({ ...prev, [formatId]: false }))
-				setDownloadProgress(prev => ({ ...prev, [formatId]: 0 }))
-			}
+			}, 1000)
 		} catch (err) {
 			console.error('Download error:', err)
-			setDownloading(prev => ({ ...prev, [formatId]: false }))
-			setDownloadProgress(prev => ({ ...prev, [formatId]: 0 }))
+
+			setDownloading(prev => ({
+				...prev,
+				[formatId]: false,
+			}))
+
+			setDownloadProgress(prev => ({
+				...prev,
+				[formatId]: 0,
+			}))
 		}
 	}
 
