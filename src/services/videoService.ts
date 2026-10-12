@@ -1,11 +1,18 @@
-interface Format {
+export interface Format {
 	code: string
 	extension: string
 	resolution: string
 	filesize: string
+	fps?: number
+	// Campos opcionais: a API omite quando não se aplicam
+	vcodec?: string
+	acodec?: string
+	abr?: number
 }
 
-interface VideoFormatsResponse {
+export interface VideoFormatsResponse {
+	title: string | null
+	thumbnail: string | null
 	formats: Format[]
 }
 
@@ -30,9 +37,11 @@ async function getErrorMessage(
 }
 
 /**
- * Busca os formatos disponíveis para o vídeo
+ * Busca o título, a capa e os formatos disponíveis para o vídeo
  */
-export async function getVideoFormats(url: string): Promise<Format[]> {
+export async function getVideoFormats(
+	url: string
+): Promise<VideoFormatsResponse> {
 	const trimmedUrl = url.trim()
 	const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
@@ -45,7 +54,11 @@ export async function getVideoFormats(url: string): Promise<Format[]> {
 	}
 
 	const data: VideoFormatsResponse = await response.json()
-	return data.formats
+	return {
+		title: data.title ?? null,
+		thumbnail: data.thumbnail ?? null,
+		formats: data.formats,
+	}
 }
 
 /**

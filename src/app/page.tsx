@@ -5,6 +5,7 @@ import type React from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+	type Format,
 	downloadFile,
 	getDownloadProgress,
 	getVideoFormats,
@@ -20,30 +21,105 @@ import {
 import {
 	ArrowRight,
 	Check,
+	ChevronDown,
 	Download,
-	FileDown,
+	Info,
 	LinkIcon,
 	Loader2,
+	type LucideIcon,
+	Music,
+	Sparkles,
+	Video,
 	X,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-interface Format {
-	code: string
-	filesize: string
-	extension: string
-	resolution: string
+const isAudioOnly = (format: Format) => format.resolution === 'audio only'
+
+// Altura do vídeo a partir de "1920x1080" (0 se não for possível ler)
+const getHeight = (format: Format) =>
+	Number(format.resolution.split('x')[1]) || 0
+
+// Nome de exibição dos codecs que a API devolve
+const CODEC_LABELS: { [codec: string]: string } = {
+	h264: 'H.264',
+	h265: 'H.265',
+	vp8: 'VP8',
+	vp9: 'VP9',
+	av1: 'AV1',
+	aac: 'AAC',
+	opus: 'Opus',
+	mp3: 'MP3',
+	vorbis: 'Vorbis',
+	ac3: 'AC-3',
+	eac3: 'E-AC-3',
+}
+
+const codecLabel = (codec?: string) =>
+	codec ? (CODEC_LABELS[codec] ?? codec.toUpperCase()) : null
+
+// Tamanho em bytes a partir de "179.73MiB" (Infinity se não for possível ler)
+const UNITS: { [unit: string]: number } = {
+	B: 1,
+	KiB: 1024,
+	MiB: 1024 ** 2,
+	GiB: 1024 ** 3,
+}
+
+const getSize = (format: Format) => {
+	const match = format.filesize.match(/^~?([\d.]+)\s*([KMG]?i?B)$/)
+	if (!match) return Number.POSITIVE_INFINITY
+	return Number(match[1]) * (UNITS[match[2]] ?? 1)
+}
+
+// Uma linha por qualidade: o formato principal e as variações (outros
+// formatos/codecs da mesma resolução)
+interface FormatRow {
+	main: Format
+	alternatives: Format[]
+}
+
+const groupByQuality = (formats: Format[]): FormatRow[] => {
+	const groups = new Map<string, Format[]>()
+
+	for (const format of formats) {
+		const key = `${getHeight(format)}-${format.fps ?? 0}`
+		groups.set(key, [...(groups.get(key) ?? []), format])
+	}
+
+	return [...groups.values()]
+		.map(group => {
+			// A opção principal é a mais compatível (H.264); entre iguais, o menor
+			// arquivo. AV1/VP9 ficam nas variações: menores, mas não tocam em
+			// aparelhos mais antigos
+			const [main, ...alternatives] = [...group].sort(
+				(a, b) =>
+					Number(b.vcodec === 'h264') - Number(a.vcodec === 'h264') ||
+					getSize(a) - getSize(b)
+			)
+			return { main, alternatives }
+		})
+		.sort(
+			(a, b) =>
+				getHeight(b.main) - getHeight(a.main) ||
+				(b.main.fps ?? 0) - (a.main.fps ?? 0)
+		)
 }
 
 export default function VideoDownloader() {
 	const [url, setUrl] = useState('')
 	const [formats, setFormats] = useState<Format[]>([])
+	const [video, setVideo] = useState<{
+		title: string | null
+		thumbnail: string | null
+	} | null>(null)
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState('')
 	const [downloadProgress, setDownloadProgress] = useState<{
 		[key: string]: number
 	}>({})
 	const [downloading, setDownloading] = useState<{ [key: string]: boolean }>({})
+	const [expanded, setExpanded] = useState<{ [key: string]: boolean }>({})
 	const inputRef = useRef<HTMLInputElement>(null)
 
 	const mouseX = useMotionValue(0)
@@ -68,11 +144,14 @@ export default function VideoDownloader() {
 
 		setLoading(true)
 		setFormats([])
+		setVideo(null)
+		setExpanded({})
 		setError('')
 
 		try {
-			const formats = await getVideoFormats(url)
+			const { title, thumbnail, formats } = await getVideoFormats(url)
 			setFormats(formats)
+			setVideo({ title, thumbnail })
 		} catch (err) {
 			setError(
 				'Failed to get video formats. Please check the URL and try again.'
@@ -149,10 +228,156 @@ export default function VideoDownloader() {
 	const clearInput = () => {
 		setUrl('')
 		setFormats([])
+		setVideo(null)
 		setError('')
 		if (inputRef.current) {
 			inputRef.current.focus()
 		}
+	}
+
+	// Separa os formatos em blocos: vídeo (uma linha por qualidade, maior
+	// primeiro) e só áudio
+	const formatGroups: {
+		title: string
+		icon: LucideIcon
+		rows: FormatRow[]
+		note?: string
+	}[] = [
+		{
+			title: 'Video',
+			icon: Video,
+			// Só avisa quando há codecs mais novos nas variações
+			note: formats.some(format => format.vcodec && format.vcodec !== 'h264')
+				? 'H.264 plays everywhere. AV1 and VP9 files are smaller, but may not play on older phones, TVs and editors.'
+				: undefined,
+			rows: groupByQuality(formats.filter(format => !isAudioOnly(format))),
+		},
+		{
+			title: 'Audio only',
+			icon: Music,
+			rows: formats
+				.filter(isAudioOnly)
+				.map(format => ({ main: format, alternatives: [] })),
+		},
+	]
+
+	// Opções recomendadas: a principal da maior qualidade de vídeo e o áudio de
+	// maior bitrate (sem bitrate, o maior arquivo)
+	const recommended = new Set(
+		[
+			formatGroups[0].rows[0]?.main,
+			formatGroups[1].rows
+				.map(row => row.main)
+				.sort(
+					(a, b) => (b.abr ?? 0) - (a.abr ?? 0) || getSize(b) - getSize(a)
+				)[0],
+		]
+			.filter(Boolean)
+			.map(format => format?.code)
+	)
+
+	const renderFormat = (
+		format: Format,
+		Icon: LucideIcon,
+		toggle?: React.ReactNode
+	) => {
+		const audio = isAudioOnly(format)
+		const height = getHeight(format)
+		const isRecommended = recommended.has(format.code)
+
+		return (
+			<div
+				className={`group relative overflow-hidden rounded-xl border backdrop-blur-sm transition-all duration-300 hover:border-zinc-700 hover:bg-zinc-800/40 ${isRecommended ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-zinc-800/80 bg-zinc-800/20'}`}
+			>
+				<div className="absolute inset-0 bg-gradient-to-r from-transparent to-zinc-800/10 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+				<div className="relative flex items-center justify-between gap-3 p-3 pl-4">
+					<div className="flex min-w-0 items-center gap-4">
+						<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 shadow-inner shadow-black/30 group-hover:text-zinc-200 transition-colors duration-200">
+							<Icon className="h-4 w-4" />
+						</div>
+						<div className="min-w-0">
+							<p className="flex items-center gap-2 font-medium text-zinc-200 group-hover:text-white transition-colors duration-200">
+								{audio
+									? format.abr
+										? `${format.abr} kbps`
+										: format.extension.toUpperCase()
+									: height
+										? `${height}p`
+										: format.extension.toUpperCase()}
+								{!audio && format.fps && format.fps > 30 && (
+									<span className="rounded bg-zinc-800 px-1.5 py-px text-[10px] font-normal text-zinc-400">
+										{format.fps}fps
+									</span>
+								)}
+								{isRecommended && (
+									<span className="flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-px text-[10px] font-normal text-emerald-400">
+										<Sparkles className="h-2.5 w-2.5" />
+										Recommended
+									</span>
+								)}
+							</p>
+							<p className="truncate text-xs text-zinc-500">
+								{[
+									format.extension.toUpperCase(),
+									codecLabel(audio ? format.acodec : format.vcodec),
+									!audio && format.resolution,
+								]
+									.filter(Boolean)
+									.join(' · ')}
+							</p>
+						</div>
+					</div>
+
+					<div className="flex shrink-0 items-center gap-2">
+						{toggle}
+						<span className="rounded-full bg-zinc-800 px-2.5 py-0.5 text-xs text-zinc-400">
+							{format.filesize}
+						</span>
+
+						<Button
+							size="sm"
+							className="h-8 rounded-lg bg-zinc-100 px-3 text-xs text-zinc-900 hover:bg-zinc-200 cursor-pointer relative overflow-hidden disabled:opacity-70"
+							onClick={() => handleDownload(format.code)}
+							disabled={downloading[format.code]}
+						>
+							{/* Barra de progresso - Usando style inline para sobrescrever a opacidade */}
+							{downloading[format.code] && (
+								<div
+									className="absolute left-0 top-0 bottom-0 bg-green-400 transition-all duration-300 ease-out"
+									style={{
+										width: `${downloadProgress[format.code] || 0}%`,
+										zIndex: 0,
+										opacity: 1,
+									}}
+								/>
+							)}
+
+							<span className="relative z-10 flex items-center justify-center">
+								{downloading[format.code] ? (
+									downloadProgress[format.code] < 100 ? (
+										<>
+											<Loader2 className="mr-1 h-3 w-3 animate-spin" />
+											{downloadProgress[format.code]}%
+										</>
+									) : (
+										<>
+											<Check className="mr-1 h-3 w-3" />
+											Done
+										</>
+									)
+								) : (
+									<>
+										<Download className="mr-1 h-3 w-3" />
+										Download
+									</>
+								)}
+							</span>
+						</Button>
+					</div>
+				</div>
+			</div>
+		)
 	}
 
 	// const handleCopyUrl = (formatId: string) => {
@@ -285,6 +510,23 @@ export default function VideoDownloader() {
 								transition={{ duration: 0.3 }}
 							>
 								<div className="border-t border-zinc-800/50 bg-zinc-900/50 p-6 md:p-8">
+									{(video?.title || video?.thumbnail) && (
+										<div className="mb-8 flex items-center gap-4">
+											{video.thumbnail && (
+												<img
+													src={video.thumbnail}
+													alt=""
+													className="aspect-video w-32 shrink-0 rounded-lg border border-zinc-800/80 bg-zinc-800 object-cover"
+												/>
+											)}
+											{video.title && (
+												<p className="line-clamp-2 font-medium text-zinc-100">
+													{video.title}
+												</p>
+											)}
+										</div>
+									)}
+
 									<div className="mb-6 flex items-center justify-between">
 										<h2 className="text-sm font-medium text-zinc-300">
 											Available formats
@@ -294,98 +536,95 @@ export default function VideoDownloader() {
 										</span>
 									</div>
 
-									<div className="grid gap-3">
-										{formats.map((format, index) => (
-											<motion.div
-												key={format.code}
-												initial={{ opacity: 0, y: 10 }}
-												animate={{ opacity: 1, y: 0 }}
-												transition={{ delay: 0.1 + index * 0.05 }}
-											>
-												<div className="group relative overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-800/20 backdrop-blur-sm transition-all duration-300 hover:border-zinc-700 hover:bg-zinc-800/40">
-													<div className="absolute inset-0 bg-gradient-to-r from-transparent to-zinc-800/10 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-
-													<div className="relative flex items-center justify-between p-4">
-														<div className="flex items-center gap-4">
-															<div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 shadow-inner shadow-black/30 group-hover:text-zinc-200 transition-colors duration-200">
-																<FileDown className="h-4 w-4" />
-															</div>
-															<div>
-																<p className="font-medium text-zinc-200 group-hover:text-white transition-colors duration-200">
-																	{format.extension}
-																</p>
-																<p className="text-xs text-zinc-500">
-																	{format.resolution}
-																</p>
-															</div>
-														</div>
-
-														<div className="flex items-center gap-2">
-															<span className="rounded-full bg-zinc-800 px-2.5 py-0.5 text-xs text-zinc-400">
-																{format.filesize}
+									<div className="space-y-8">
+										{formatGroups.map(
+											group =>
+												group.rows.length > 0 && (
+													<section key={group.title}>
+														<div className="mb-3 flex items-center gap-2">
+															<group.icon className="h-4 w-4 text-zinc-500" />
+															<h3 className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+																{group.title}
+															</h3>
+															<span className="text-xs text-zinc-600">
+																{group.rows.length}
 															</span>
-
-															<div className="flex items-center gap-1">
-																{/* <Button
-																	size="sm"
-																	variant="ghost"
-																	className="h-8 rounded-lg border border-zinc-800 bg-zinc-800/50 px-2 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-																	onClick={() => handleCopyUrl(format.code)}
-																>
-																	{copiedStates[format.code] ? (
-																		<Check className="h-3 w-3" />
-																	) : (
-																		'Copy'
-																	)}
-																</Button> */}
-
-																<Button
-																	size="sm"
-																	className="h-8 rounded-lg bg-zinc-100 px-3 text-xs text-zinc-900 hover:bg-zinc-200 cursor-pointer relative overflow-hidden disabled:opacity-70"
-																	onClick={() => handleDownload(format.code)}
-																	disabled={downloading[format.code]}
-																>
-																	{/* Barra de progresso - Usando style inline para sobrescrever a opacidade */}
-																	{downloading[format.code] && (
-																		<div
-																			className="absolute left-0 top-0 bottom-0 bg-green-400 transition-all duration-300 ease-out"
-																			style={{
-																				width: `${downloadProgress[format.code] || 0}%`,
-																				zIndex: 0,
-																				opacity: 1,
-																			}}
-																		/>
-																	)}
-
-																	<span className="relative z-10 flex items-center justify-center">
-																		{downloading[format.code] ? (
-																			<>
-																				{downloadProgress[format.code] < 100 ? (
-																					<>
-																						<Loader2 className="mr-1 h-3 w-3 animate-spin" />
-																						{downloadProgress[format.code]}%
-																					</>
-																				) : (
-																					<>
-																						<Check className="mr-1 h-3 w-3" />
-																						Done
-																					</>
-																				)}
-																			</>
-																		) : (
-																			<>
-																				<Download className="mr-1 h-3 w-3" />
-																				Download
-																			</>
-																		)}
-																	</span>
-																</Button>
-															</div>
+															<div className="ml-2 h-px flex-1 bg-zinc-800/80" />
 														</div>
-													</div>
-												</div>
-											</motion.div>
-										))}
+
+														{group.note && (
+															<p className="mb-3 flex items-start gap-1.5 text-xs text-zinc-500">
+																<Info className="mt-px h-3.5 w-3.5 shrink-0" />
+																{group.note}
+															</p>
+														)}
+
+														<div className="grid gap-2">
+															{group.rows.map(
+																({ main, alternatives }, index) => {
+																	const isExpanded = expanded[main.code]
+
+																	const toggle = alternatives.length > 0 && (
+																		<button
+																			type="button"
+																			onClick={() =>
+																				setExpanded(prev => ({
+																					...prev,
+																					[main.code]: !prev[main.code],
+																				}))
+																			}
+																			aria-expanded={isExpanded}
+																			className="flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 cursor-pointer transition-colors"
+																		>
+																			+{alternatives.length}
+																			<ChevronDown
+																				className={`h-3 w-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+																			/>
+																		</button>
+																	)
+
+																	return (
+																		<motion.div
+																			key={main.code}
+																			initial={{ opacity: 0, y: 10 }}
+																			animate={{ opacity: 1, y: 0 }}
+																			transition={{ delay: 0.1 + index * 0.03 }}
+																		>
+																			{renderFormat(main, group.icon, toggle)}
+
+																			<AnimatePresence initial={false}>
+																				{isExpanded && (
+																					<motion.div
+																						initial={{ opacity: 0, height: 0 }}
+																						animate={{
+																							opacity: 1,
+																							height: 'auto',
+																						}}
+																						exit={{ opacity: 0, height: 0 }}
+																						transition={{ duration: 0.2 }}
+																						className="overflow-hidden"
+																					>
+																						<div className="ml-5 mt-2 grid gap-2 border-l border-zinc-800 pl-3">
+																							{alternatives.map(format => (
+																								<div key={format.code}>
+																									{renderFormat(
+																										format,
+																										group.icon
+																									)}
+																								</div>
+																							))}
+																						</div>
+																					</motion.div>
+																				)}
+																			</AnimatePresence>
+																		</motion.div>
+																	)
+																}
+															)}
+														</div>
+													</section>
+												)
+										)}
 									</div>
 								</div>
 							</motion.div>
