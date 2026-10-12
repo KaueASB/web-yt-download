@@ -87,6 +87,7 @@ export default function VideoDownloader() {
 		if (downloading[formatId]) return
 
 		try {
+			setError('')
 			setDownloading(prev => ({ ...prev, [formatId]: true }))
 			setDownloadProgress(prev => ({ ...prev, [formatId]: 0 }))
 
@@ -116,6 +117,7 @@ export default function VideoDownloader() {
 				} catch (error) {
 					console.error('Progress check failed:', error)
 					clearInterval(interval)
+					setError(error instanceof Error ? error.message : 'Download failed')
 
 					setDownloading(prev => ({
 						...prev,
@@ -127,9 +129,10 @@ export default function VideoDownloader() {
 						[formatId]: 0,
 					}))
 				}
-			}, 1000)
+			}, 2000)
 		} catch (err) {
 			console.error('Download error:', err)
+			setError(err instanceof Error ? err.message : 'Failed to start download')
 
 			setDownloading(prev => ({
 				...prev,

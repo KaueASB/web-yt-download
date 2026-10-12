@@ -15,6 +15,21 @@ interface DownloadResponse {
 }
 
 /**
+ * Lê a mensagem de erro retornada pela API ({ error }), com fallback
+ */
+async function getErrorMessage(
+	response: Response,
+	fallback: string
+): Promise<string> {
+	try {
+		const data = await response.json()
+		return data.error || fallback
+	} catch {
+		return fallback
+	}
+}
+
+/**
  * Busca os formatos disponíveis para o vídeo
  */
 export async function getVideoFormats(url: string): Promise<Format[]> {
@@ -44,11 +59,11 @@ export async function startVideoDownload(
 	const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
 	const response = await fetch(
-		`${apiUrl}/download-with-code?url=${encodeURIComponent(trimmedUrl)}&code=${formatCode}`
+		`${apiUrl}/download-with-code?url=${encodeURIComponent(trimmedUrl)}&code=${encodeURIComponent(formatCode)}`
 	)
 
 	if (!response.ok) {
-		throw new Error('Failed to start download')
+		throw new Error(await getErrorMessage(response, 'Failed to start download'))
 	}
 
 	const data: DownloadResponse = await response.json()
@@ -67,7 +82,9 @@ export async function getDownloadProgress(jobId: string): Promise<number> {
 	)
 
 	if (!response.ok) {
-		throw new Error('Failed to get download progress')
+		throw new Error(
+			await getErrorMessage(response, 'Failed to get download progress')
+		)
 	}
 
 	const data = await response.json()
@@ -86,7 +103,9 @@ export function downloadFile(jobId: string): void {
 	iframe.src = `${apiUrl}/file?jobId=${encodeURIComponent(jobId)}`
 	document.body.appendChild(iframe)
 
+	// Tempo folgado para cold starts: remover o iframe depois que o download
+	// começou não o cancela
 	setTimeout(() => {
-		document.body.removeChild(iframe)
-	}, 2000)
+		iframe.remove()
+	}, 30000)
 }
