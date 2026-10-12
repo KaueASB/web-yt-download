@@ -31,19 +31,20 @@ Uma aplicação web moderna para download de vídeos da internet, com interface 
 
 - Node.js 18+ (recomendado 20+)
 - pnpm (recomendado) ou npm
+- Backend da API em execução (projeto separado, em `../api`), que faz o processamento e o download dos vídeos
 
 ## 🔧 Instalação
 
 1. Clone o repositório:
 
    ```bash
-   via http
+   # via https
    git clone https://github.com/KaueASB/web-yt-download.git
 
-   via ssh
+   # via ssh
    git clone git@github.com:KaueASB/web-yt-download.git
 
-   cd web-video-download
+   cd web-yt-download
    ```
 
 2. Instale as dependências:
@@ -58,7 +59,7 @@ Uma aplicação web moderna para download de vídeos da internet, com interface 
    cp env-example .env.local
    ```
 
-   Edite o arquivo `.env.local` e defina:
+   Edite o arquivo `.env.local` e defina a URL base do backend (como a variável é `NEXT_PUBLIC_`, o navegador chama o backend diretamente):
 
    ```env
    NEXT_PUBLIC_API_URL="http://sua-api-url.com"
@@ -80,12 +81,9 @@ Organização de arquivos e diretórios:
 web-video-download/
 ├── src/
 │   ├── app/              # Next.js App Router
-│   │   ├── api/          # API Routes
-│   │   │   ├── download/ # Iniciar download
-│   │   │   ├── file/     # Servidor de arquivos
-│   │   │   ├── formats/  # Formatos disponíveis
-│   │   │   └── progress/ # Monitoramento de progresso
-│   │   └── page.tsx      # Página principal
+│   │   ├── api/
+│   │   │   └── file/     # Proxy opcional para o arquivo final do backend
+│   │   └── page.tsx      # Página principal (UI e fluxo de download)
 │   ├── components/       # Componentes reutilizáveis
 │   ├── lib/              # Utilitários e configurações
 │   └── services/         # Serviços de comunicação com API
@@ -97,17 +95,24 @@ web-video-download/
 ## 🔄 Fluxo de Trabalho
 
 1. O usuário insere a URL do vídeo na interface
-2. A aplicação consulta a API para obter formatos disponíveis
+2. A aplicação consulta o backend para obter os formatos disponíveis
 3. O usuário seleciona o formato desejado e clica em "Download"
-4. A aplicação inicia o processamento e exibe o progresso em tempo real
-5. Quando concluído, o download do arquivo começa automaticamente
+4. O backend inicia o processamento e retorna um `jobId`
+5. A aplicação consulta o progresso periodicamente (polling) pelo `jobId` e atualiza a barra de progresso
+6. Ao chegar em 100%, o download do arquivo começa automaticamente por um iframe oculto, sem redirecionar o usuário
 
 ## 📝 API Endpoints
 
-- `GET /api/formats?url=...` - Obtém formatos disponíveis para uma URL
-- `GET /api/download?url=...&code=...` - Inicia o processo de download
-- `GET /api/progress?url=...` - Monitora o progresso do download usando SSE
-- `GET /api/file?url=...` - Baixa o arquivo final
+O frontend chama diretamente o backend definido em `NEXT_PUBLIC_API_URL` (veja `src/services/videoService.ts`):
+
+- `GET {API}/formats?url=...` - Obtém os formatos disponíveis para uma URL
+- `GET {API}/download-with-code?url=...&code=...` - Inicia o download no formato escolhido e retorna o `jobId`
+- `GET {API}/progress?jobId=...` - Retorna o progresso atual do download
+- `GET {API}/file?jobId=...` - Baixa o arquivo final
+
+Rota interna do Next.js:
+
+- `GET /api/file?jobId=...` - Proxy para `{API}/file`, repassando os cabeçalhos de download (não é usada pelo fluxo principal hoje)
 
 ## 🚀 Produção
 
